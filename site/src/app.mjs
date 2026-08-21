@@ -98,7 +98,7 @@ function renderGenerator(message = "") {
   currentUri = "";
   generatorPanel.hidden = false;
   redirectPanel.hidden = true;
-  if (message) setMessage(generatorMessage, message, "error");
+  setMessage(generatorMessage, message, message ? "error" : "info");
 }
 
 function route() {
