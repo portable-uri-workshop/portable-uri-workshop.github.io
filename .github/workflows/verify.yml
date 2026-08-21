@@ -1,0 +1,31 @@
+name: Verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Test redirector policy
+        run: npm test
+      - name: Build static site with commit metadata
+        run: npm run build -- "$GITHUB_SHA"
+      - name: Verify offline-only source invariants
+        run: |
+          if grep -R -n -E '<(script[^>]+src|link[^>]+href|img[^>]+src)="https?://' site; then
+            echo 'Unexpected external runtime asset.' >&2
+            exit 1
+          fi
+          if grep -R -n -E '\b(fetch|XMLHttpRequest|WebSocket|EventSource)\b' site; then
+            echo 'Unexpected network API in runtime source.' >&2
+            exit 1
+          fi
