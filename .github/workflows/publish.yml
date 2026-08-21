@@ -1,0 +1,113 @@
+name: Build, publish, attest, and release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Test redirector policy
+        run: npm test
+      - name: Build exact site payload
+        run: npm run build -- "$GITHUB_SHA"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: site-payload
+          path: _site
+          include-hidden-files: true
+          if-no-files-found: error
+
+  deploy-pages:
+    if: github.ref == 'refs/heads/main'
+    needs: build-test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: site-payload
+          path: _site
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: _site
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+
+  package-attest:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: site-payload
+          path: _site
+      - name: Create deterministic Pages payload ZIP and checksum
+        run: |
+          mkdir -p dist
+          (
+            cd _site
+            find . -type f | LC_ALL=C sort | zip -X "../dist/portable-uri-redirector-${GITHUB_REF_NAME}.zip" -@
+          )
+          sha256sum "dist/portable-uri-redirector-${GITHUB_REF_NAME}.zip" > "dist/portable-uri-redirector-${GITHUB_REF_NAME}.zip.sha256"
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: dist/portable-uri-redirector-${{ github.ref_name }}.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-files
+          path: dist
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package-attest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-files
+          path: dist
+      - name: Publish immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > release-notes.md <<'EOF'
+          Initial GitHub Pages release.
+
+          - Supports validated custom-scheme and Android intent URIs through `#to=`.
+          - Blocks direct web, browser, local, and executable schemes.
+          - Uses no external assets, analytics, or network APIs.
+          - Includes the exact Pages payload ZIP, SHA-256, and GitHub Artifact Attestation.
+          EOF
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Portable URI Redirector $GITHUB_REF_NAME" \
+            --notes-file release-notes.md \
+            --verify-tag

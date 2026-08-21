@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Portable URI Redirector</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./build-info.js" defer></script>
+  <script type="module" src="./src/app.mjs"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">PORTABLE URI WORKSHOP</p>
+      <h1>딥링크를 다른 기기로 옮기세요.</h1>
+      <p class="lede">URI는 URL fragment 안에만 머물며, 이 정적 페이지는 분석 도구·외부 스크립트·네트워크 API를 사용하지 않습니다.</p>
+    </header>
+
+    <section id="generator-panel" class="card">
+      <h2>공유 URL 만들기</h2>
+      <form id="generator-form">
+        <label for="uri-input">앱 URI 또는 Android intent URI</label>
+        <textarea id="uri-input" rows="5" spellcheck="false" placeholder="kakaolink://send/..."></textarea>
+        <button class="primary" type="submit">공유 URL 생성</button>
+      </form>
+      <label for="generated-url">생성된 URL</label>
+      <textarea id="generated-url" rows="4" readonly></textarea>
+      <button id="copy-generated" type="button">공유 URL 복사</button>
+      <p id="generator-message" class="message" role="status" aria-live="polite"></p>
+      <p class="fine-print">직접 웹 주소(http/https)와 브라우저·로컬·스크립트 scheme은 허용하지 않습니다. 링크 자체에는 민감한 식별값이 포함될 수 있으므로 공개 게시하지 마세요.</p>
+    </section>
+
+    <section id="redirect-panel" class="card" hidden>
+      <p class="eyebrow">OPEN TARGET</p>
+      <h2 id="status-title">URI</h2>
+      <p id="status-detail" class="message" role="status" aria-live="polite"></p>
+      <dl id="metadata-list" class="metadata"></dl>
+      <p class="display-label">원본 URI</p>
+      <pre id="original-uri" class="uri-display"></pre>
+      <div class="actions">
+        <button id="open-again" class="primary" type="button">다시 열기</button>
+        <button id="copy-original" type="button">원본 URI 복사</button>
+      </div>
+      <p class="fine-print">페이지가 URI를 열면 대상 앱이나 브라우저가 이후 처리를 담당합니다. fallback URL이 있는 Android intent는 브라우저 정책에 따라 fallback으로 이동할 수 있습니다.</p>
+    </section>
+
+    <footer>
+      <a href="https://github.com/portable-uri-workshop/portable-uri-workshop.github.io">source</a>
+      <span aria-hidden="true">·</span>
+      <span>deployed commit <a id="build-commit"></a></span>
+      <span aria-hidden="true">·</span>
+      <a href="https://github.com/portable-uri-workshop/portable-uri-workshop.github.io/releases">release payloads</a>
+    </footer>
+  </main>
+</body>
+</html>
