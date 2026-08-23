@@ -44,7 +44,7 @@ jobs:
         with:
           name: site-payload
           path: _site
-      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       # The official upload-pages-artifact composite currently calls
       # actions/upload-artifact@v4 by a movable tag, which is rejected by the
       # repository's full-SHA policy. These are its equivalent pinned steps.
