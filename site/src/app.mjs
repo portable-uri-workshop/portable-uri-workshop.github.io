@@ -23,6 +23,7 @@ const copyGeneratedButton = document.querySelector("#copy-generated");
 const buildCommit = document.querySelector("#build-commit");
 
 let currentUri = "";
+let currentFingerprint = "";
 
 function setMessage(element, text, tone = "info") {
   element.textContent = text;
@@ -40,14 +41,7 @@ async function copyText(value, messageElement, successMessage) {
 
 function renderMetadata(result) {
   metadataList.replaceChildren();
-  const entries = result.kind === "intent"
-    ? [
-        ["내부 scheme", result.metadata.scheme],
-        ["package", result.metadata.package || "(없음)"],
-        ["component", result.metadata.component || "(없음)"],
-        ["fallback", result.metadata.fallback || "(없음)"],
-      ]
-    : [["scheme", result.metadata.scheme]];
+  const entries = [["scheme", result.metadata.scheme]];
 
   for (const [label, value] of entries) {
     const term = document.createElement("dt");
@@ -60,10 +54,15 @@ function renderMetadata(result) {
 
 function openTarget(manual = false) {
   if (!currentUri) return;
-  try {
-    sessionStorage.setItem(STORAGE_KEY, createOpenRecord(currentUri, Date.now()));
-  } catch {
-    // Storage can be unavailable in hardened browser modes; opening remains usable.
+  if (currentFingerprint) {
+    try {
+      sessionStorage.setItem(
+        STORAGE_KEY,
+        createOpenRecord(currentFingerprint, Date.now()),
+      );
+    } catch {
+      // Storage can be unavailable in hardened browser modes; opening remains usable.
+    }
   }
   setMessage(
     statusDetail,
@@ -72,12 +71,13 @@ function openTarget(manual = false) {
   window.location.assign(currentUri);
 }
 
-function renderRedirect(result) {
+function renderRedirect(result, fingerprint) {
   generatorPanel.hidden = true;
   redirectPanel.hidden = false;
   currentUri = result.uri;
+  currentFingerprint = fingerprint;
   originalUri.textContent = result.uri;
-  statusTitle.textContent = result.kind === "intent" ? "Android intent URI" : "앱 딥링크";
+  statusTitle.textContent = "앱 딥링크";
   renderMetadata(result);
 
   let previous = null;
@@ -86,7 +86,7 @@ function renderRedirect(result) {
   } catch {
     // Treat unavailable storage as no previous navigation record.
   }
-  if (!shouldAutoOpen(previous, result.uri, Date.now())) {
+  if (!shouldAutoOpen(previous, fingerprint, Date.now())) {
     setMessage(statusDetail, "500ms 안에 같은 URI가 반복되어 자동 실행을 멈췄습니다.", "warning");
     return;
   }
@@ -96,12 +96,22 @@ function renderRedirect(result) {
 
 function renderGenerator(message = "") {
   currentUri = "";
+  currentFingerprint = "";
   generatorPanel.hidden = false;
   redirectPanel.hidden = true;
   setMessage(generatorMessage, message, message ? "error" : "info");
 }
 
-function route() {
+async function fingerprintUri(uri) {
+  if (!globalThis.crypto?.subtle) return "";
+  const digest = await globalThis.crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(uri),
+  );
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function route() {
   const result = parseTargetHash(window.location.hash);
   if (!result.ok) {
     renderGenerator(result.message);
@@ -111,7 +121,9 @@ function route() {
     renderGenerator();
     return;
   }
-  renderRedirect(result);
+  history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  const fingerprint = await fingerprintUri(result.uri);
+  renderRedirect(result, fingerprint);
 }
 
 document.querySelector("#generator-form").addEventListener("submit", (event) => {
@@ -149,5 +161,5 @@ if (/^[0-9a-f]{40}$/.test(commit || "")) {
   buildCommit.removeAttribute("href");
 }
 
-window.addEventListener("hashchange", route);
-route();
+window.addEventListener("hashchange", () => { void route(); });
+void route();

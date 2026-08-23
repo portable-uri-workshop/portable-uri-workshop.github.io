@@ -113,9 +113,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cat > release-notes.md <<'EOF'
-          Initial GitHub Pages release.
+          Portable URI Redirector maintenance release.
 
-          - Supports validated custom-scheme and Android intent URIs through `#to=`.
+          - Keeps 250ms automatic opening for validated custom-scheme URIs.
+          - Blocks Android intent URIs and browser fallback redirects in every scheme casing.
+          - Removes the target fragment after parsing and stores only a SHA-256 loop fingerprint.
           - Blocks direct web, browser, local, and executable schemes.
           - Uses no external assets, analytics, or network APIs.
           - Includes the exact Pages payload ZIP, SHA-256, and GitHub Artifact Attestation.
