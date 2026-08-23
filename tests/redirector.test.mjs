@@ -16,17 +16,6 @@ test("accepts a generic custom-scheme URI", () => {
   assert.equal(result.metadata.scheme, "kakaolink");
 });
 
-test("accepts and describes an Android intent URI", () => {
-  const uri = "intent://scan/#Intent;scheme=zxing;package=com.example.app;component=com.example.app/.Scan;S.browser_fallback_url=https%3A%2F%2Fexample.invalid;end";
-  const result = validateTargetUri(uri);
-  assert.equal(result.ok, true);
-  assert.equal(result.kind, "intent");
-  assert.equal(result.metadata.scheme, "zxing");
-  assert.equal(result.metadata.package, "com.example.app");
-  assert.equal(result.metadata.component, "com.example.app/.Scan");
-  assert.equal(result.metadata.fallback, "https://example.invalid");
-});
-
 test("blocks direct web, local, and executable schemes", () => {
   for (const uri of [
     "https://example.com",
@@ -39,19 +28,12 @@ test("blocks direct web, local, and executable schemes", () => {
   }
 });
 
-test("blocks a dangerous inner intent scheme", () => {
-  const result = validateTargetUri("intent://example/#Intent;scheme=https;package=com.android.chrome;end");
-  assert.equal(result.ok, false);
-  assert.match(result.message, /내부 scheme/);
-});
-
-test("blocks a non-web or malformed intent fallback", () => {
-  assert.equal(validateTargetUri(
-    "intent://example/#Intent;scheme=demo;S.browser_fallback_url=javascript%3Aalert(1);end",
-  ).ok, false);
-  assert.equal(validateTargetUri(
-    "intent://example/#Intent;scheme=demo;S.browser_fallback_url=%E0%A4%A;end",
-  ).ok, false);
+test("blocks Android intent URIs in every scheme casing", () => {
+  for (const scheme of ["intent", "Intent", "INTENT", "iNtEnT"]) {
+    assert.equal(validateTargetUri(
+      `${scheme}://example/#Intent;scheme=kakaolink;S.browser_fallback_url=https%3A%2F%2Fevil.invalid;end`,
+    ).ok, false, scheme);
+  }
 });
 
 test("requires only the #to= input convention", () => {
@@ -72,10 +54,13 @@ test("builds an encoded fragment URL without a query input", () => {
 });
 
 test("suppresses only a same-URI open inside 500ms", () => {
-  const record = createOpenRecord("kakao://send/a", 1_000);
-  assert.equal(shouldAutoOpen(record, "kakao://send/a", 1_499), false);
-  assert.equal(shouldAutoOpen(record, "kakao://send/a", 1_500), true);
-  assert.equal(shouldAutoOpen(record, "kakao://send/b", 1_001), true);
+  const fingerprintA = "a".repeat(64);
+  const fingerprintB = "b".repeat(64);
+  const record = createOpenRecord(fingerprintA, 1_000);
+  assert.equal(record.includes("kakao://"), false);
+  assert.equal(shouldAutoOpen(record, fingerprintA, 1_499), false);
+  assert.equal(shouldAutoOpen(record, fingerprintA, 1_500), true);
+  assert.equal(shouldAutoOpen(record, fingerprintB, 1_001), true);
 });
 
 test("rejects control characters and oversized values", () => {
